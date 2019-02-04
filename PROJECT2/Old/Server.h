@@ -73,9 +73,9 @@ void Server::executeHandShake(){
     sendFd=getSendFd(client_name,cPort.c_str(),&target_ai);
     ackNum=nextAck(rPkt.SEQ,1);
     hsPkt=new Packet(ackNum,seqNum,1,1,0,(char *)"handShake");
-    hsPkt->send(sendFd,target_ai,0,0,true);
+    hsPkt->send(sendFd,target_ai);
     seq_set.insert(hsPkt->SEQ);
-    hsThread=thread(checkTimeOut,hsPkt,sendFd,target_ai,&seq_set,true);
+    hsThread=thread(checkTimeOut,hsPkt,sendFd,target_ai,&seq_set);
 }
 void Server::sendFile(){
 	//get Filename Pkt
@@ -91,14 +91,14 @@ void Server::sendFile(){
         }
     }
 
-    // printf("Got Filename\n");
+    printf("Got Filename\n");
     
 	for(int i=0;i<5;i++){
 		window[i]=NULL;
 		t[i]=NULL;
 	}
 
-	// printf("Initial 5\n");
+	printf("Initial 5\n");
     //send intial 5
     bool eof=0;
 	char buf[MAX_PAYLOAD_SIZE];
@@ -114,8 +114,8 @@ void Server::sendFile(){
 		window[i]=pkt;
 		if(eof!=1){
 			seq_set.insert(window[i]->SEQ);
-			window[i]->send(sendFd,target_ai,0,0,true);
-			t[i]=new thread(checkTimeOut,window[i],sendFd,target_ai,&seq_set,true);
+			window[i]->send(sendFd,target_ai,0);
+			t[i]=new thread(checkTimeOut,window[i],sendFd,target_ai,&seq_set);
 		}
 		if(chunk_size<MAX_PAYLOAD_SIZE-4){
 			eof=1;
@@ -123,7 +123,7 @@ void Server::sendFile(){
 
 	}
 	//start receiving ack
-	// printf("Start Receiving\n");
+	printf("Start Receiving\n");
 	
 	while(1){
 		Packet rPkt=Packet();
@@ -136,29 +136,29 @@ void Server::sendFile(){
 			break;
 		}
 		int stop_index=-1;
-		// printf("WINDOW:\n");
+		printf("WINDOW:\n");
 		for(int i=0;i<=5;i++){
 			if(rPkt.ACK==nextAck(window[0]->SEQ,i*MAX_PAYLOAD_SIZE)){
 				stop_index=i;
-				// printf("%d ", nextAck(window[0]->SEQ,i*MAX_PAYLOAD_SIZE));
+				printf("%d ", nextAck(window[0]->SEQ,i*MAX_PAYLOAD_SIZE));
 				break;
 			}
 		}
-		// printf("\n");
-		// printf("REAL WINDOW: \n");
+		printf("\n");
+		printf("REAL WINDOW: \n");
 		for (int j=0;j<5;j++){
-			// printf("%d ",window[j]->SEQ);
+			printf("%d ",window[j]->SEQ);
 		}
-		// printf("\n");
+		printf("\n");
 
 		ackNum=nextAck(rPkt.SEQ,1);
 		if(stop_index!=-1){
-			// printf("stop_index= %d\n", stop_index);
-			// printf("******Valid Packet\n");
+			printf("stop_index= %d\n", stop_index);
+			printf("******Valid Packet\n");
 			for(int j=0;j<stop_index;j++){
 				seq_set.erase(window.front()->SEQ);
-				if(t.front()->joinable())
-					t.front()->detach();
+				// if(t.front()->joinable())
+				// 	t.front()->join();
 				window.pop_front();
 				t.pop_front();
 
@@ -170,7 +170,7 @@ void Server::sendFile(){
 				seqNum=nextSeq(seqNum,MAX_PAYLOAD_SIZE);
 				pkt->ACK_flag=1;
 				if(eof!=1){
-					pkt->send(sendFd,target_ai,1,0,true);
+					pkt->send(sendFd,target_ai,1,0);
 				}
 				window.push_back(pkt);
 				if(seq_set.find(pkt->SEQ) == seq_set.end())
@@ -178,16 +178,16 @@ void Server::sendFile(){
 				else{
 					fprintf(stderr, "DUP THREAD\n");exit(1);
 				}
-				thread* tmp=new thread(checkTimeOut,pkt,sendFd,target_ai,&seq_set,true);
+				thread* tmp=new thread(checkTimeOut,pkt,sendFd,target_ai,&seq_set);
 				t.push_back(tmp);
 				if(chunk_size<MAX_PAYLOAD_SIZE-4){
-					// printf("********REACH EOF\n");
+					printf("********REACH EOF\n");
 					eof=1;
 				}
 			}
 		}
 		else{//ACK not in window
-			// printf("*******Not in window\n");
+			printf("*******Not in window\n");
 			// for(int i=0;i<5;i++){
 			// 	if(window[i]->SEQ==0){
 			// 		printf("seqNum==0: ");
@@ -204,7 +204,7 @@ void Server::sendFile(){
 
 
 void Server::closeConnection(){
-	// printf("Start Closing\n");
+	printf("Start Closing\n");
 	while(!t.empty()){
 		if(t.front()==NULL)
 			break;
@@ -213,17 +213,17 @@ void Server::closeConnection(){
 		t.pop_front();
 	}
 
-	// printf("CLOSE 2\n");
+	printf("CLOSE 2\n");
 	seqNum=nextSeq(seqNum,1);
 	Packet* lastAck=new Packet(ackNum,seqNum,1,0,0,(char*)"");
-	lastAck->send(sendFd,target_ai,0,0,true);
+	lastAck->send(sendFd,target_ai);
 	delete lastAck;
 
 	seqNum=nextSeq(seqNum,1);
 	Packet *fPkt=new Packet(ackNum,seqNum,1,0,1,(char*)"");
-	fPkt->send(sendFd,target_ai,0,0,true);
+	fPkt->send(sendFd,target_ai);
 	seq_set.insert(fPkt->SEQ);
-	thread* ft=new thread(checkTimeOut,fPkt,sendFd,target_ai,&seq_set,true);
+	thread* ft=new thread(checkTimeOut,fPkt,sendFd,target_ai,&seq_set);
 
 	Packet rPkt=Packet();
 	while(1){

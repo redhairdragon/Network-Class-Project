@@ -65,9 +65,9 @@ void Client::executeHandShake(){
 	listenFd=getListenFd(cPort.c_str());
 	
 	Packet* hsPkt=new Packet(0,seqNum,0,1,0,(char *)"handShake");
-	hsPkt->send(sendFd,target_ai,0,0,false);
+	hsPkt->send(sendFd,target_ai);
 	seq_set.insert(hsPkt->SEQ);
-	thread* t=new thread(checkTimeOut,hsPkt,sendFd,target_ai,&seq_set,false);
+	thread* t=new thread(checkTimeOut,hsPkt,sendFd,target_ai,&seq_set);
 	Packet rPkt=Packet();
 	while(1){
 		rPkt.receive(listenFd,&their_addr);
@@ -81,9 +81,9 @@ void Client::executeHandShake(){
 	seqNum=nextSeq(seqNum,1);
 	ackNum=nextAck(rPkt.SEQ,1);
 	fnPkt=new Packet(ackNum,seqNum,1,0,0,fName.c_str());
-	fnPkt->send(sendFd,target_ai,0,0,false);
+	fnPkt->send(sendFd,target_ai);
 	seq_set.insert(fnPkt->SEQ);
-	fnThread=new thread(checkTimeOut,fnPkt,sendFd,target_ai,&seq_set,false);
+	fnThread=new thread(checkTimeOut,fnPkt,sendFd,target_ai,&seq_set);
 }
 
 void Client::getFile(){
@@ -111,16 +111,16 @@ void Client::getFile(){
 			if(rPkt->SEQ==nextAck(ackNum,i*MAX_PAYLOAD_SIZE)&&window[i]==NULL){
 				window[i]=rPkt;
 				validPkt=1;
-				// printf("i: %d\n",i);
+				printf("i: %d\n",i);
 				break;
 			}
 		}
 		//response
 		if(validPkt==0){
 			seqNum=nextSeq(seqNum,1);
-			// printf("*******%s\n", "Invalid Packet Not in the Window");
-			// printf("Cuurent ACK %d\n", ackNum);
-			Packet(ackNum,seqNum,1,0,0,(char*)"").send(sendFd,target_ai,0,0,false);
+			printf("*******%s\n", "Invalid Packet Not in the Window");
+			printf("Cuurent ACK %d\n", ackNum);
+			Packet(ackNum,seqNum,1,0,0,(char*)"").send(sendFd,target_ai);
 			// exit(1);
 		}
 		else{
@@ -136,7 +136,7 @@ void Client::getFile(){
 			}
 			// ackNum=nextAck(ackNum,MAX_PAYLOAD_SIZE);
 			seqNum=nextSeq(seqNum,1);
-			Packet(ackNum,seqNum,1,0,0,(char*)"").send(sendFd,target_ai,0,0,false);
+			Packet(ackNum,seqNum,1,0,0,(char*)"").send(sendFd,target_ai);
 		}
 		if(eof){
 			fclose(fPtr);
@@ -146,12 +146,12 @@ void Client::getFile(){
 }
 
 void Client::closeConnection(){
-	// printf("Start closeConnection\n");
+	printf("Start closeConnection\n");
 	seqNum=nextSeq(seqNum,1);
 	Packet* fPkt=new Packet(ackNum,seqNum,1,0,1,(char*)"");
-	fPkt->send(sendFd,target_ai,0,0,false);
+	fPkt->send(sendFd,target_ai);
 	seq_set.insert(fPkt->SEQ);
-	thread *t=new thread(checkTimeOut,fPkt,sendFd,target_ai,&seq_set,false);
+	thread *t=new thread(checkTimeOut,fPkt,sendFd,target_ai,&seq_set);
 
 	Packet rPkt=Packet();
 	while(1){
@@ -163,7 +163,7 @@ void Client::closeConnection(){
 			seqNum=nextSeq(seqNum,1);
 			ackNum=nextAck(rPkt.SEQ,1);
 			Packet sPkt=Packet(ackNum,seqNum,1,0,0,(char*)"");
-			sPkt.send(sendFd,target_ai,0,0,false);
+			sPkt.send(sendFd,target_ai);
 			clock_t c=clock();
 			while(1){
 				if(diffclock(clock(),c)>=2*TIME_OUT)
